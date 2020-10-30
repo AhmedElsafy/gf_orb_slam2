@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf2_ros
     geometry_msgs
     # for closed-loop evaluation of Good Graph only
-    trajectory_state_predictor
+    #trajectory_state_predictor
 )
 
 message("ROS version = " $ENV{ROS_DISTRO})
@@ -113,10 +113,10 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 if ($ENV{ROS_DISTRO} STREQUAL "indigo")
      set( OpenCV_DIR /opt/opencv2/share/OpenCV )
      find_package(OpenCV 2.4.13 REQUIRED core ocl)
-elseif ($ENV{ROS_DISTRO} STREQUAL "kinetic")
-     set( OpenCV_DIR /opt/opencv3/share/OpenCV )
+elseif ($ENV{ROS_DISTRO} STREQUAL "melodic")
+     set( OpenCV_DIR /etc/include/opencv2/ )
      find_package(OpenCV 3.4.1 REQUIRED
-                PATHS /opt/opencv3
+                PATHS /etc/share/OpenCV/
                 NO_DEFAULT_PATH)
 endif()
 MESSAGE("OpenCV include dir: " ${OpenCV_INCLUDE_DIRS})
@@ -171,6 +171,7 @@ MESSAGE("Boost lib: " ${Boost_LIBRARIES})
 include_directories(
 ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
+${PROJECT_SOURCE_DIR}/lib
     ${PROJECT_SOURCE_DIR}/Thirdparty/SLAM++/include
     ${PROJECT_SOURCE_DIR}/Thirdparty/sse2neon/
     ${OpenCV_INCLUDE_DIRS}
@@ -192,7 +193,7 @@ if(ENABLE_CUDA_IN_OPENCV)
         include/Util_cuda.hpp
         include/Util.hpp
         src/System.cc
-        src/ChArUco.cc
+        #src/ChArUco.cc
         src/Observability.cc
         src/Hashing.cc
         src/Tracking.cc
@@ -227,7 +228,7 @@ else()
     set(SRCS
         include/Util.hpp
         src/System.cc
-        src/ChArUco.cc
+        #src/ChArUco.cc
         src/Hashing.cc
         src/Observability.cc
         src/Tracking.cc
@@ -358,7 +359,7 @@ ${PROJECT_NAME}
 #)
 
 # Node for stereo camera
-add_executable(Stereo Examples/ROS/GF_ORB_SLAM2/src/ros_stereo.cc)
+add_executable(Stereo Examples/ROS/GF_ORB_SLAM2/src/ros_stereo.cc lib/SlamData.cc)
     # src/path_smoothing_ros/cubic_spline_interpolator.cpp)
 
 target_link_libraries(Stereo

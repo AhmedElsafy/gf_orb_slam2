@@ -38,7 +38,7 @@
 #include "System.h"
 
 #include "Hashing.h"
-#include "ChArUco.h"
+//#include "ChArUco.h"
 #include "Observability.h"
 
 #include <set>
@@ -58,7 +58,7 @@ using namespace Eigen;
 
 
 /* --- options of initialization --- */
-// #define INIT_WITH_ARUCHO
+//#define INIT_WITH_ARUCHO
 
 
 /* --- options for ground truth generation, by running at a slow rate and additional optimization iterations --- */
@@ -89,7 +89,7 @@ using namespace Eigen;
 // https://github.gatech.edu/ivabots/trajectory_state_predictor
 // Otherwise, you might write your own predictor by grabbing output from the controller
 //
-#define ENABLE_PLANNER_PREDICTION
+//#define ENABLE_PLANNER_PREDICTION
 
 #ifdef ENABLE_PLANNER_PREDICTION
   #include <trajectory_state_predictor/trajectory_state_predictor.h>

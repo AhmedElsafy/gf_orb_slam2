@@ -25,6 +25,7 @@
 #include <list>
 #include <opencv/cv.h>
 
+
 #if !defined(__SSE3__) && !defined(__SSE2__) && !defined(__SSE1__)
     #include "SSE2NEON.h"
 #endif
@@ -37,7 +38,7 @@
 // #define CUDA_ACC_FAST
 
 // optimized for NEON in FAST detection (you can only choose one of the two macros!)
-// #define NEON_ACC_FAST
+#define NEON_ACC_FAST
 
 #ifdef CUDA_ACC_FAST
     #include <opencv2/core/cuda.hpp>
@@ -50,6 +51,8 @@
     #include <cuda/Orb.hpp>
     #include "Util_cuda.hpp"
 #endif
+
+
 
 #ifdef NEON_ACC_FAST
     #include "FAST_NEON.h"

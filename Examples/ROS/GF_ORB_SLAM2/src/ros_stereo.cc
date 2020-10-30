@@ -45,6 +45,7 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <ros/publisher.h>
 
+#include "SlamData.h"
 
 using namespace std;
 
@@ -56,9 +57,12 @@ using namespace std;
 class ImageGrabber
 {
 public:
-    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM){
+    ImageGrabber(ORB_SLAM2::System* pSLAM, ORB_SLAM2::SlamData* pSLAMDATA){
+    
+        mpSLAM = pSLAM;
+        mpSLAMDATA = pSLAMDATA;
 #ifdef MAP_PUBLISH
-      mnMapRefreshCounter = 0;
+      	mnMapRefreshCounter = 0;
 #endif
     }
 
@@ -69,6 +73,7 @@ public:
     void GrabPath(const nav_msgs::Path::ConstPtr    & msg);
 
     ORB_SLAM2::System* mpSLAM;
+    ORB_SLAM2::SlamData* mpSLAMDATA;
     bool do_rectify;
     cv::Mat M1l,M2l,M1r,M2r;
     
@@ -94,7 +99,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Stereo");
     ros::start();
 
-    if(argc != 10)
+    if(argc > 12)
     {
         cerr << endl << "Usage: rosrun gf_orb_slam2 Stereo path_to_vocabulary path_to_settings budget_per_frame "
              << " do_rectify do_viz "
@@ -109,8 +114,13 @@ int main(int argc, char **argv)
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::STEREO,do_viz);
+		
 
     SLAM.SetConstrPerFrame(std::atoi(argv[3]));
+
+    ros::NodeHandle nh;
+    ORB_SLAM2::SlamData SLAMDATA(&SLAM, &nh, true);
+    ImageGrabber igb(&SLAM, &SLAMDATA);  
 
     // convert budget input from ms to sec
     // SLAM.SetBudgetPerFrame(FLAGS_budget_per_frame*1e-3);
@@ -135,7 +145,7 @@ int main(int argc, char **argv)
     // SLAM.ForceInitTracker();
 #endif
 
-    ImageGrabber igb(&SLAM);
+
 
     stringstream s2(argv[4]);
     s2 >> boolalpha >> igb.do_rectify;
@@ -187,7 +197,7 @@ int main(int argc, char **argv)
 
     }
 
-    ros::NodeHandle nh;
+    
 
     // message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, "/camera/left/image_raw", 1);
     // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "camera/right/image_raw", 1);
@@ -380,13 +390,17 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 	pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec());
     }
 
-    if (pose.empty())
+    if (pose.empty()){
+	mpSLAM->Reset();	
 	return;
+    }
 
 double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
 // ROS_INFO("ORB-SLAM Tracking Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
 // ROS_INFO("Image Transmision Latency: %.03f sec; Total Tracking Latency: %.03f sec", latency_trans, latency_total);
 ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
+
+mpSLAMDATA->update(pose);
 
 /*
     // std::cout << "broadcast pose!" << std::endl;

@@ -1,12 +1,12 @@
 echo "Configuring and building Thirdparty/DBoW2 ..."
 
 cd Thirdparty/DBoW2
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DDBOW2_LIB_TYPE:STRING="SHARED" # "STATIC" # 
-make -j4
+#mkdir build
+#cd build
+#cmake .. -DCMAKE_BUILD_TYPE=Release -DDBOW2_LIB_TYPE:STRING="SHARED" # "STATIC" # 
+#make -j4
 
-cd ../../g2o
+cd ../g2o
 
 echo "Configuring and building Thirdparty/g2o ..."
 

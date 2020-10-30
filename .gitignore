@@ -29,8 +29,8 @@ build/
 test/testObs
 tools/bin_vocabulary
 CMakeFiles/
-*~
-lib/
 .vscode/
 .kdev4/*
 *.kdev4
+xianyi-OpenBLAS-eebc189/
+OpenBLAS 0.3.5 version.zip
