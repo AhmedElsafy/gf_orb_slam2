@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
     tf2_geometry_msgs
     tf2_ros
     geometry_msgs
+    pluginlib 
+    nodelet
     # for closed-loop evaluation of Good Graph only
     #trajectory_state_predictor
 )
@@ -359,6 +361,21 @@ ${PROJECT_NAME}
 #)
 
 # Node for stereo camera
+set(LIBSTEREO_NODELET_NAME StereoNodelet)
+
+add_library(StereoNodelet Examples/ROS/GF_ORB_SLAM2/src/ros_stereo_nodelet.cc lib/SlamData.cc lib/ImageGrabber.cc)
+#add_dependencies(StereoNodelet  lib/SlamData.cc)
+target_link_libraries(StereoNodelet
+   ${catkin_LIBRARIES}
+   ${LIBS}
+   ${PROJECT_NAME}
+
+ )
+
+
+
+
+
 add_executable(Stereo Examples/ROS/GF_ORB_SLAM2/src/ros_stereo.cc lib/SlamData.cc)
     # src/path_smoothing_ros/cubic_spline_interpolator.cpp)
 
@@ -379,6 +396,12 @@ ${LIBS}
 ${catkin_LIBRARIES}
 ${PROJECT_NAME}
 )
+
+
+
+#add_library(stereo_nodelet Examples/ROS/GF_ORB_SLAM2/src/ros_stereo_nodelet.cc)
+#add_dependencies(stereo_nodelet ${PROJECT_NAME})
+#target_link_libraries(stereo_nodelet ${catkin_LIBRARIES})
 
 
 # Build test cases

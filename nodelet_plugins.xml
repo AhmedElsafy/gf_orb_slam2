@@ -1,0 +1,8 @@
+<library path="lib/libStereoNodelet">
+
+  <class name="ORB_SLAM2/StereoNodelet" type="ORB_SLAM2::StereoNodelet" base_class_type="nodelet::Nodelet">
+    <description>Nodelet to perform ORB_SLAM2_CUDA</description>
+  </class>
+
+</library>
+

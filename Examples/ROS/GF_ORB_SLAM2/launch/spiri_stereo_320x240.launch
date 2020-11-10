@@ -15,6 +15,7 @@
 
     <node name="ORB_SLAM2_CUDA_gf" pkg="gf_orb_slam2" type="Stereo" output="screen" 
     	args="$(arg vocabularty_path) $(arg camera_setting_path) $(arg budget_per_frame) $(arg do_rectify) $(arg do_viz) $(arg topic_img_l) $(arg topic_img_r) $(arg path_to_traj) $(arg path_to_map)" >
+	<remap from="/posestamped_vision" to="/mavros/vision_pose/pose"/>
 
     </node>
 
@@ -22,5 +23,6 @@
     <!--<node pkg="tf" type="static_transform_publisher" name="local_origin_to_odom" args="0 0 0  0.5 -0.5 0.5 -0.5 odom local_origin 0.1" />-->
     <!--<node pkg="tf" type="static_transform_publisher" name="odom_to_local_origin" args="0 0 0 0 0 0 odom local_origin 0.1" />-->
     <!--<node name="vision_odom_transformer" pkg="topic_tools" type="transform" output="screen" args="/ORB_SLAM/camera_pose /mavros/vision_pose/pose geometry_msgs/PoseStamped 'geometry_msgs.msg.PoseStamped(header=std_msgs.msg.Header(seq=m.header.seq,stamp=m.header.stamp,frame_id=&quot;local_origin&quot;),pose=geometry_msgs.msg.Pose(position=geometry_msgs.msg.Point(x=m.pose.position.z * 1, y=m.pose.position.x * 1, z=m.pose.position.y * -1),orientation = m.pose.orientation))' import geometry_msgs std_msgs" />-->
-    <!--<node name="vision_odom_transformer" pkg="topic_tools" type="transform" output="screen" args="/ORB_SLAM/camera_pose /mavros/vision_pose/pose_cov geometry_msgs/PoseWithCovarianceStamped 'geometry_msgs.msg.PoseStamped(header=std_msgs.msg.Header(seq=m.header.seq,stamp=m.header.stamp,frame_id=&quot;local_origin&quot;),pose=geometry_msgs.msg.Pose(position=geometry_msgs.msg.Point(x=m.pose.position.x * 1, y=m.pose.position.y * 1, z=m.pose.position.z * 1),orientation = m.pose.orientation))' import geometry_msgs std_msgs" />-->
+    <!--<node name="vision_odom_transformer" pkg="topic_tools" type="transform" output="screen" args="/posestamped_vision /mavros/vision_pose/pose geometry_msgs/PoseStamped 'geometry_msgs.msg.PoseStamped(header=std_msgs.msg.Header(seq=m.header.seq,stamp=m.header.stamp,frame_id=&quot;local_origin&quot;),pose=geometry_msgs.msg.Pose(position=geometry_msgs.msg.Point(x=m.pose.position.x * 1, y=m.pose.position.y * 1, z=m.pose.position.z * 1),orientation = m.pose.orientation))' import geometry_msgs std_msgs" />-->
+
 </launch>

@@ -15,6 +15,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Imu.h>
+#include "mavros_msgs/Altitude.h"
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -102,8 +104,21 @@ namespace ORB_SLAM2
         void SetLastpose(cv::Mat lastpose);
         cv::Mat GetLastPose(void);
 
+	cv::Mat ResumeFromPose;
+	void SetResumeFromPose(cv::Mat Resume);
+        cv::Mat GetResumeFromPose(void);
 
-        cv::Mat IMURotation(cv::Mat IMUR, cv::Mat CurrentPose);
+
+        cv::Mat ImuAltInt(float Alt, cv::Mat IMUR, cv::Mat CurrentPose);
+        
+        geometry_msgs::Quaternion ImuQuaternion;
+        bool SetOrientationImu(geometry_msgs::Quaternion MavImu);
+        
+        float MavAlt;
+        bool SetAlt(float Alt);
+
+
+
 
     private:
         bool bEnablePublishROSTopic;

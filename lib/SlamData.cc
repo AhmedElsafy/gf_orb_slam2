@@ -35,6 +35,10 @@ SlamData::SlamData(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool 
 
     image_transport::ImageTransport it_((*nodeHandler));
     current_frame_pub = it_.advertise("/current_frame", 1);
+    LastPose = cv::Mat::eye(4,4,CV_32F);
+    ResumeFromPose = cv::Mat::eye(4,4,CV_32F);
+
+    
 }
 
 void SlamData::SaveTimePoint(TimePointIndex index)
@@ -326,15 +330,10 @@ cv::Mat SlamData::TransformFromQuat (geometry_msgs::Quaternion Quat){
 	float RotationMatrix[9]= {1 - (2*qy2)-(2*qz2) , 2*qx*qy - 2*qz*qw , 2*qx*qz + 2*qy*qw,
 														2*qx*qy + 2*qz*qw   , 1 - 2*qx2 - 2*qz2 , 2*qy*qz - 2*qx*qw,
               							2*qx*qz - 2*qy*qw   , 2*qy*qz + 2*qx*qw , 1 - 2*qx2 - 2*qy2};
-	std::cout<<"DEBUG Node.cc ln 226 RotationMatrix= ";
-	std::cout<<RotationMatrix<<std::endl;
+	
 
 	cv::Mat RotationCV = cv::Mat(3,3,CV_32F,RotationMatrix); 
-	std::cout<<"RotationCV = ";
-	std::cout<< RotationCV <<std::endl;
-	std::cout << " x y z w = ";
-	std::cout << qx << " " << qy << " " << qz << " " << qw <<std::endl;
-
+	
 	float ROSToOrb[9] = {0, -1,  0,
 											 0,  0, -1,
                        1,  0,  0};
@@ -344,26 +343,46 @@ cv::Mat SlamData::TransformFromQuat (geometry_msgs::Quaternion Quat){
 	cv::Mat RotationCVOrb = ROSToOrbCV * RotationCV ;
   cv::Mat RotationCVorbTrans = RotationCVOrb.t();
 	cv::Mat RotationCVRosOrb = ROSToOrbCV * RotationCVorbTrans ;
-  std::cout<<RotationCVRosOrb<<std::endl; 
+
 	return RotationCVRosOrb;
 }
 
 void SlamData::PublishPositionAsTransform (cv::Mat position) {
+    //tf::Vector3 V(0, 0, 0);
 		tf::Transform transform = TransformFromMat (position);
+		tf:: Quaternion ImuQuatTFT;
+		tf::quaternionMsgToTF(ImuQuaternion,ImuQuatTFT);
+		transform.setRotation(ImuQuatTFT);
+		//transform.setOrigin(V);
 		static tf::TransformBroadcaster tf_broadcaster;
 		tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "ORB_SLAM2"));
 }
 
 void SlamData::PublishPositionAsPoseStamped (cv::Mat position) {
+
 		tf::Transform grasp_tf = TransformFromMat (position);
-		tf::Stamped<tf::Pose> grasp_tf_pose(grasp_tf, ros::Time::now(), "world");
+		tf::Stamped<tf::Pose> grasp_tf_pose(grasp_tf, ros::Time::now(), "local_origin");
 		geometry_msgs::PoseStamped pose_msg;
 		tf::poseStampedTFToMsg (grasp_tf_pose, pose_msg);
+		//pose_msg.pose.orientation = ImuQuaternion;
+		pose_msg.pose.position.z = MavAlt;
 		pose_pub_vision.publish(pose_msg);
 }
 
 void SlamData::update(cv::Mat position){
-    PublishPositionAsTransform (position);
+    if (ResettingState)
+    { 
+       position = position * ResumeFromPose;
+    }
+    std::cout<<"ResumeFromPose:"<<std::endl;
+    std::cout<<ResumeFromPose<<std::endl;
+
+		//cv::Mat ImuRot = TransformFromQuat(ImuQuaternion);
+
+
+		//position = ImuAltInt(MavAlt,ImuRot,position);
+
+    //PublishPositionAsTransform (position);
     PublishPositionAsPoseStamped (position);			
 }
 
@@ -378,16 +397,42 @@ cv::Mat SlamData::GetLastPose(void){
     return LastPose;
 }
 
+void SlamData::SetResumeFromPose(cv::Mat Resume){
+    
+    ResumeFromPose = Resume;  
+}
 
-cv::Mat SlamData::IMURotation(cv::Mat IMUR, cv::Mat CurrentPose){
+cv::Mat SlamData::GetResumeFromPose(void){
+
+    return ResumeFromPose;
+}
+
+
+cv::Mat SlamData::ImuAltInt(float Alt, cv::Mat IMUR, cv::Mat CurrentPose){
 
     cv::Mat IntegratedPoseMat = cv::Mat(4,4,CV_32F);
     IMUR.copyTo(IntegratedPoseMat(cv::Rect(0,0,3,3)));
     CurrentPose.col(3).copyTo(IntegratedPoseMat.col(3));
-	
+    //std::cout << "Before Alt integration" << std::endl;
+		//std::cout << IntegratedPoseMat << std::endl;
+		//IntegratedPoseMat.at<double>(3,4) = Alt;
+	  //std::cout << "after Alt integration of Alt = " << Alt << std::endl;
+		//std::cout << IntegratedPoseMat << std::endl;
 
     return IntegratedPoseMat;
 
+}
+
+bool SlamData::SetOrientationImu(geometry_msgs::Quaternion MavImu)
+{
+  ImuQuaternion = MavImu;
+  return true;
+}
+
+bool SlamData::SetAlt(float Alt)
+{
+  MavAlt = Alt;
+  return true;
 }
 
 

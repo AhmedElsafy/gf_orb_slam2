@@ -37,6 +37,9 @@
 #include "nav_msgs/Odometry.h"
 #include "nav_msgs/Path.h"
 #include "geometry_msgs/TransformStamped.h"
+
+#include "sensor_msgs/Imu.h"
+#include "mavros_msgs/Altitude.h"
 #include "tf/transform_datatypes.h"
 #include <tf/transform_broadcaster.h>
 
@@ -70,7 +73,11 @@ public:
     
     void GrabOdom(const nav_msgs::Odometry::ConstPtr& msg);
 
-    void GrabPath(const nav_msgs::Path::ConstPtr    & msg);
+    void GrabPath(const nav_msgs::Path::ConstPtr& msg);
+
+    void GrabImu(const sensor_msgs::ImuConstPtr& msgImu);
+    
+    void GrabAlt(const mavros_msgs::AltitudeConstPtr& MavAlt); 
 
     ORB_SLAM2::System* mpSLAM;
     ORB_SLAM2::SlamData* mpSLAMDATA;
@@ -203,6 +210,8 @@ int main(int argc, char **argv)
     // message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "camera/right/image_raw", 1);
     message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, argv[6], 1);
     message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, argv[7], 1);
+    ros::Subscriber Imusub = nh.subscribe("mavros/imu/data", 1000, &ImageGrabber::GrabImu, &igb);
+    ros::Subscriber MavAltsub = nh.subscribe("/mavros/altitude", 1000, &ImageGrabber::GrabAlt, &igb);
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
 
     // NOTE
@@ -219,8 +228,8 @@ int main(int argc, char **argv)
     
     // TODO
     // figure out the proper queue size
-    igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
-    igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
+    igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 1);
+    igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 1);
 
 #ifdef FRAME_WITH_INFO_PUBLISH
     igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
@@ -336,6 +345,21 @@ void ImageGrabber::GrabPath(const nav_msgs::Path::ConstPtr& msg) {
     //    mpDensePathPub.publish(path_dense);
 }
 
+void ImageGrabber::GrabImu(const sensor_msgs::ImuConstPtr& msgImu)
+{
+   sensor_msgs::Imu ImuMsg = *msgImu;    
+   geometry_msgs::Quaternion imuQuat = ImuMsg.orientation;
+   mpSLAMDATA->SetOrientationImu(imuQuat);
+
+}
+
+
+void ImageGrabber::GrabAlt(const mavros_msgs::AltitudeConstPtr& msgAlt)
+{
+  mavros_msgs::Altitude MavAlt = *msgAlt;
+  float Alt = MavAlt.relative;
+  mpSLAMDATA->SetAlt(Alt);
+}
 
 
 void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
@@ -391,9 +415,12 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
     }
 
     if (pose.empty()){
+	mpSLAMDATA->SetResettingState(true);
+	mpSLAMDATA->SetResumeFromPose(mpSLAMDATA->GetLastPose());
 	mpSLAM->Reset();	
 	return;
     }
+mpSLAMDATA->SetLastpose(pose);
 
 double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
 // ROS_INFO("ORB-SLAM Tracking Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
