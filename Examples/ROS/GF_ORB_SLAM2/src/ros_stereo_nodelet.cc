@@ -2,6 +2,7 @@
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
 #include "ImageGrabber.h"
+#include "SlamData.h"
 
 
 namespace ORB_SLAM2{
@@ -37,11 +38,13 @@ namespace ORB_SLAM2{
       it_.reset(new image_transport::ImageTransport(nh));
       
       std::string left_topic;
-      nh.param<std::string>("left_topic", left_topic, "stereo/left/image_rect");
+      nh.param<std::string>("left_topic", left_topic, "/stereo/left/image_rect");
+      nh.getParam("/left_topic",left_topic);
       //left_sub.subscribe(*it_, left_topic, 1);
       
       std::string right_topic;
-      nh.param<std::string>("right_topic", right_topic, "stereo/right/image_rect");
+      nh.param<std::string>("right_topic", right_topic, "/stereo/right/image_rect");
+      nh.getParam("/right_topic",right_topic);
       //left_sub.subscribe(*it_, right_topic, 1);
       
       message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, left_topic, 1);
@@ -74,17 +77,22 @@ namespace ORB_SLAM2{
       ORB_SLAM2::System SLAM(vocabulary_path , camera_setting_path ,ORB_SLAM2::System::STEREO,do_viz);
       SLAM.SetConstrPerFrame(budget_per_frame);
       
-      ORB_SLAM2::SlamData SLAMDATA(&SLAM, &private_nh, true);
+      ORB_SLAM2::SlamData SLAMDATA(&SLAM, &nh, true);
+
+
       
-      ImageGrabber igb(&SLAM, &SLAMDATA);  
+      ImageGrabber igb(&SLAM, &SLAMDATA);
+
 
       Imusub = nh.subscribe("mavros/imu/data", 1000, &ImageGrabber::GrabImu, &igb);
       MavAltsub = nh.subscribe("/mavros/altitude", 1000, &ImageGrabber::GrabAlt, &igb);
       typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
       message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub, right_sub);
       sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo, &igb, _1, _2));
+
       
       igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
+      std::cout<<"mpFrameWithInfoPublisher created"<<std::endl;  
       
       
 
@@ -95,7 +103,7 @@ namespace ORB_SLAM2{
 
 
 
-
+    /*
     void ImageGrabber::GrabImu(const sensor_msgs::ImuConstPtr& msgImu)
     {
        sensor_msgs::Imu ImuMsg = *msgImu;    
@@ -187,7 +195,7 @@ namespace ORB_SLAM2{
         mnMapRefreshCounter ++;
     #endif
 
-    }
+    }*/
 
 }
 

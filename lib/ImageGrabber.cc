@@ -30,9 +30,10 @@ namespace ORB_SLAM2{
 
 	void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
 	{
+        std::cout<<"Grabbing images"<<std::endl;  
 
 	    double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
-	//  ROS_INFO("ORB-SLAM Initial Latency: %.03f sec", ros::Time::now().toSec() - msgLeft->header.stamp.toSec());
+	    ROS_INFO("ORB-SLAM Initial Latency: %.03f sec", ros::Time::now().toSec() - msgLeft->header.stamp.toSec());
 
 	    // Copy the ros image message to cv::Mat.
 	    cv_bridge::CvImageConstPtr cv_ptrLeft;

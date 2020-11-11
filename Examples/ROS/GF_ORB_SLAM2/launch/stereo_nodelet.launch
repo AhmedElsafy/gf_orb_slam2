@@ -10,9 +10,9 @@
   <param name="budget_per_frame" value="1600" />
   <param name="do_viz" value="false"/>
   <param name="topic_img_l" value="/stereo/left/image_rect"/>
-  <param name="topic_img_r" value="stereo/right/image_rect"/>
-  <param name="path_to_traj" value="(find gf_orb_slam2)/../ORB_Data/log/"/>
-  <param name="path_to_map" value="(find gf_orb_slam2)/../ORB_Data/log/"/>
+  <param name="topic_img_r" value="/stereo/right/image_rect"/>
+  <param name="path_to_traj" value="$(find gf_orb_slam2)/../ORB_Data/log/"/>
+  <param name="path_to_map" value="$(find gf_orb_slam2)/../ORB_Data/log/"/>
 
   <node pkg="nodelet" type="nodelet" name="stereo_nodelet" args="load ORB_SLAM2/StereoNodelet stereo_nodelet_manager " output="screen">
   </node>
