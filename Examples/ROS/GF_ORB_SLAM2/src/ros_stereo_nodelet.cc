@@ -1,11 +1,14 @@
-
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
 #include "ImageGrabber.h"
 #include "SlamData.h"
+#include <image_transport/image_transport.h>
+
 
 
 namespace ORB_SLAM2{
+using namespace message_filters::sync_policies;
+
 
     class StereoNodelet : public nodelet::Nodelet
     {
@@ -18,6 +21,22 @@ namespace ORB_SLAM2{
         
         ros::Subscriber Imusub;
         ros::Subscriber MavAltsub;
+        
+        image_transport::SubscriberFilter                               sub_l_image_, sub_r_image_;
+        typedef ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> ApproximatePolicy;
+        typedef message_filters::Synchronizer<ApproximatePolicy>        ApproximateSync;
+        boost::shared_ptr<ApproximateSync>                              approximate_sync_;
+        
+        //ORB_SLAM2::System NSLAMSYS;
+        ORB_SLAM2::System* NSLAM;
+        ORB_SLAM2::SlamData* NSLAMDATA;
+        ImageGrabber* Nigb;
+        ORB_SLAM2::System SLAMSYSTest;
+        ORB_SLAM2::SlamData SLAMDATA;
+        ImageGrabber igb; 
+
+        //typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
+        //message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub, right_sub);
 
 
         
@@ -47,8 +66,8 @@ namespace ORB_SLAM2{
       nh.getParam("/right_topic",right_topic);
       //left_sub.subscribe(*it_, right_topic, 1);
       
-      message_filters::Subscriber<sensor_msgs::Image> left_sub(nh, left_topic, 1);
-      message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, right_topic, 1);
+      message_filters::Subscriber<sensor_msgs::Image> left_sub(nh,"/stereo/left/image_rect", 1);
+      message_filters::Subscriber<sensor_msgs::Image> right_sub(nh, "/stereo/right/image_rect", 1);
 
       std::string do_viz_str;
       nh.param<std::string>("do_viz", do_viz_str, "false");
@@ -74,24 +93,45 @@ namespace ORB_SLAM2{
       nh.param<std::string>("path_to_map", path_to_map);
       
       
-      ORB_SLAM2::System SLAM(vocabulary_path , camera_setting_path ,ORB_SLAM2::System::STEREO,do_viz);
-      SLAM.SetConstrPerFrame(budget_per_frame);
+      //ORB_SLAM2::System SLAM(vocabulary_path , camera_setting_path ,ORB_SLAM2::System::STEREO,do_viz);
+      //SLAM.SetConstrPerFrame(budget_per_frame);
       
-      ORB_SLAM2::SlamData SLAMDATA(&SLAM, &nh, true);
-
-
+      SLAMSYSTest.initialize(vocabulary_path , camera_setting_path ,ORB_SLAM2::System::STEREO,do_viz);
+      SLAMSYSTest.SetConstrPerFrame(budget_per_frame);
+      //NSLAMSYS = SLAM;
       
-      ImageGrabber igb(&SLAM, &SLAMDATA);
+      NSLAM = &SLAMSYSTest;
 
+            
+      SLAMDATA.initialize(&SLAMSYSTest, &nh, true);
+      
+      NSLAMDATA = &SLAMDATA;
+
+
+      std::cout<<"creating igb"<<std::endl;
+      igb.initialize(NSLAM, NSLAMDATA);
+      igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
+      
+      Nigb = &igb;
+      std::cout<<"igb created"<<std::endl;
 
       Imusub = nh.subscribe("mavros/imu/data", 1000, &ImageGrabber::GrabImu, &igb);
       MavAltsub = nh.subscribe("/mavros/altitude", 1000, &ImageGrabber::GrabAlt, &igb);
-      typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-      message_filters::Synchronizer<sync_pol> sync(sync_pol(2), left_sub, right_sub);
-      sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo, &igb, _1, _2));
 
       
-      igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
+      
+      image_transport::TransportHints hints("raw", ros::TransportHints(), getPrivateNodeHandle());
+      sub_l_image_.subscribe(*it_, "/stereo/left/image_rect", 1, hints);
+      sub_r_image_.subscribe(*it_, "/stereo/right/image_rect", 1, hints);
+
+
+      approximate_sync_.reset(new ApproximateSync(ApproximatePolicy(2), sub_l_image_, sub_r_image_));
+      approximate_sync_->registerCallback(boost::bind(&ImageGrabber::GrabStereo, Nigb, _1, _2));
+      
+      //sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo, &igb, _1, _2));
+
+      
+
       std::cout<<"mpFrameWithInfoPublisher created"<<std::endl;  
       
       
@@ -109,24 +149,17 @@ namespace ORB_SLAM2{
        sensor_msgs::Imu ImuMsg = *msgImu;    
        geometry_msgs::Quaternion imuQuat = ImuMsg.orientation;
        mpSLAMDATA->SetOrientationImu(imuQuat);
-
     }
-
-
     void ImageGrabber::GrabAlt(const mavros_msgs::AltitudeConstPtr& msgAlt)
     {
       mavros_msgs::Altitude MavAlt = *msgAlt;
       float Alt = MavAlt.relative;
       mpSLAMDATA->SetAlt(Alt);
     }
-
-
     void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
     {
-
     double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
     // ROS_INFO("ORB-SLAM Initial Latency: %.03f sec", ros::Time::now().toSec() - msgLeft->header.stamp.toSec());
-
         // Copy the ros image message to cv::Mat.
         cv_bridge::CvImageConstPtr cv_ptrLeft;
         try
@@ -138,7 +171,6 @@ namespace ORB_SLAM2{
 	    ROS_ERROR("cv_bridge exception: %s", e.what());
 	    return;
         }
-
         cv_bridge::CvImageConstPtr cv_ptrRight;
         try
         {
@@ -149,14 +181,10 @@ namespace ORB_SLAM2{
 	    ROS_ERROR("cv_bridge exception: %s", e.what());
 	    return;
         }
-
     // ROS_INFO("ORB-SLAM Image Transmision Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
-
         cv::Mat pose;
-
 	    pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec());
      
-
         if (pose.empty())
         {
             mpSLAMDATA->SetResettingState(true);
@@ -166,14 +194,11 @@ namespace ORB_SLAM2{
         }
         
         mpSLAMDATA->SetLastpose(pose);
-
         double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
         // ROS_INFO("ORB-SLAM Tracking Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
         // ROS_INFO("Image Transmision Latency: %.03f sec; Total Tracking Latency: %.03f sec", latency_trans, latency_total);
         ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
-
         mpSLAMDATA->update(pose);
-
         
     #ifdef FRAME_WITH_INFO_PUBLISH
         if (mpSLAM != NULL && mpSLAM->mpFrameDrawer != NULL) {
@@ -185,8 +210,6 @@ namespace ORB_SLAM2{
             mpFrameWithInfoPublisher.publish(out_msg.toImageMsg());
         }
     #endif
-
-
     #ifdef MAP_PUBLISH
         if (mnMapRefreshCounter % 30 == 1) {
 	      // publish map points
@@ -194,7 +217,6 @@ namespace ORB_SLAM2{
         }
         mnMapRefreshCounter ++;
     #endif
-
     }*/
 
 }

@@ -64,8 +64,15 @@ namespace ORB_SLAM2
         };
         
     public:
+        SlamData();
+        ~SlamData();
+        SlamData(const SlamData &SD2);
+
         SlamData(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool bPublishROSTopic);
-	bool Initialized;
+        void initialize(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool bPublishROSTopic);
+        
+
+	      bool Initialized;
 
         void SaveTimePoint(TimePointIndex index);
 

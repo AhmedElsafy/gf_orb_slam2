@@ -40,6 +40,112 @@ bool has_suffix(const std::string &str, const std::string &suffix) {
 namespace ORB_SLAM2
 {
 
+void System::initialize(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, const bool bUseViewer)
+{
+    cout << "Intializing A SLAM System using initialize method" << endl;
+    mSensor = sensor;
+    mbReset = false;
+    mbActivateLocalizationMode = false;
+    mbDeactivateLocalizationMode = false;
+    
+    cout << endl <<
+              "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of Zaragoza." << endl <<
+              "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
+              "This is free software, and you are welcome to redistribute it" << endl <<
+              "under certain conditions. See LICENSE.txt." << endl << endl;
+
+    cout << "Input sensor was set to: ";
+
+    if(mSensor==MONOCULAR)
+        cout << "Monocular" << endl;
+    else if(mSensor==STEREO)
+        cout << "Stereo" << endl;
+    else if(mSensor==RGBD)
+        cout << "RGB-D" << endl;
+
+    //Check settings file
+    cout << "Try loading yaml from " << strSettingsFile.c_str() << endl;
+    cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
+    if(!fsSettings.isOpened())
+    {
+        cerr << "Failed to open settings file at: " << strSettingsFile << endl;
+        exit(-1);
+    }
+
+
+    //Load ORB Vocabulary
+    cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
+
+    clock_t tStart = clock();
+
+    mpVocabulary = new ORBVocabulary();
+    // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+    bool bVocLoad = false; // chose loading method based on file extension
+    if (has_suffix(strVocFile, ".txt"))
+        bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+    else
+        bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
+
+    if(!bVocLoad)
+    {
+        cerr << "Wrong path to vocabulary. " << endl;
+        cerr << "Failed to open at: " << strVocFile << endl;
+        exit(-1);
+    }
+    // cout << "Vocabulary loaded!" << endl << endl;
+    printf("Vocabulary loaded in %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+
+    //Create KeyFrame Database
+    mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
+
+    //Create the Map
+    mpMap = new Map();
+
+    //Create Drawers. These are used by the Viewer
+    mpFrameDrawer = new FrameDrawer(mpMap);
+    mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
+
+    mpHashHandler = new HASHING::MultiIndexHashing(256, NUM_TOTAL_HASHTABLES);
+
+    //Initialize the Tracking thread
+    //(it will live in the main thread of execution, the one that called this constructor)
+    mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
+                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
+
+    //Initialize the Local Mapping thread and launch
+    mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
+    mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
+
+    //Initialize the Loop Closing thread and launch
+    mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR);
+    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+
+    //Initialize the Viewer thread and launch
+    if(bUseViewer)
+    {
+        mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile);
+        mptViewer = new thread(&Viewer::Run, mpViewer);
+        mpTracker->SetViewer(mpViewer);
+    }
+
+    //Set pointers between threads
+    mpTracker->SetLocalMapper(mpLocalMapper);
+    mpTracker->SetLoopClosing(mpLoopCloser);
+    mpTracker->SetHashHandler(mpHashHandler);
+
+    mpLocalMapper->SetTracker(mpTracker);
+    mpLocalMapper->SetLoopCloser(mpLoopCloser);
+    mpLocalMapper->SetHashHandler(mpHashHandler);
+
+    mpLoopCloser->SetTracker(mpTracker);
+    mpLoopCloser->SetLocalMapper(mpLocalMapper);
+
+    mFrameLossTrack = 0;
+
+
+}
+
+
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),mbActivateLocalizationMode(false),
     mbDeactivateLocalizationMode(false)
@@ -139,6 +245,49 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     mFrameLossTrack = 0;
 
+}
+
+System::~System()
+{
+    std::cout<<"System destroyed"<<std::endl;
+}
+
+
+/*System::System(const System &Sys2)
+{
+    std::cout<<"Using copy constructor"<<std::endl;
+    mSensor = Sys2.mSensor;
+    mpVocabulary = Sys2.mpVocabulary;
+    mpKeyFrameDatabase = Sys2.mpKeyFrameDatabase;
+    mpMap = Sys2.mpMap;
+    mpFrameDrawer =Sys2.mpFrameDrawer;
+    mpMapDrawer = Sys2.mpMapDrawer;
+
+    mpHashHandler = Sys2.mpHashHandler;
+
+    //Initialize the Tracking thread
+    //(it will live in the main thread of execution, the one that called this constructor)
+    mpTracker = Sys2.mpTracker;
+
+    //Initialize the Local Mapping thread and launch
+    mpLocalMapper = Sys2.mpLocalMapper;
+    mptLocalMapping = Sys2.mptLocalMapping;
+
+    //Initialize the Loop Closing thread and launch
+    mpLoopCloser = Sys2.mpLoopCloser;
+    mptLoopClosing = Sys2.mptLoopClosing;
+    mbActivateLocalizationMode = false;
+    mbDeactivateLocalizationMode = false;
+    mbReset = false;
+    mpViewer = Sys2.mpViewer;
+    
+
+
+}*/
+
+System::System()
+{ 
+    std::cout<<"System constructor using default constructor"<<std::endl;
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)

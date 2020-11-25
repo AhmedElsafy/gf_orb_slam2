@@ -38,10 +38,14 @@ using namespace std;
 #define FRAME_WITH_INFO_PUBLISH
 
 namespace ORB_SLAM2{
+        class slamData;
 	class ImageGrabber
 	{
 	public:
-	    ImageGrabber(ORB_SLAM2::System* pSLAM, ORB_SLAM2::SlamData* pSLAMDATA);
+	    ImageGrabber(ORB_SLAM2::System* pSLAM, SlamData* pSLAMDATA);
+            ~ImageGrabber();
+            ImageGrabber();
+            void initialize(ORB_SLAM2::System* pSLAM, SlamData* pSLAMDATA);
 
 	    void GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight);
 	    
@@ -54,7 +58,7 @@ namespace ORB_SLAM2{
 	    void GrabAlt(const mavros_msgs::AltitudeConstPtr& MavAlt); 
 
 	    ORB_SLAM2::System* mpSLAM;
-	    ORB_SLAM2::SlamData* mpSLAMDATA;
+	    SlamData* mpSLAMDATA;
 	    bool do_rectify;
 	    cv::Mat M1l,M2l,M1r,M2r;
 	    

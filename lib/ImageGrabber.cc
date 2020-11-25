@@ -2,35 +2,76 @@
 # include "ImageGrabber.h"
 
 namespace ORB_SLAM2{
-	ImageGrabber::ImageGrabber(ORB_SLAM2::System* pSLAM, ORB_SLAM2::SlamData* pSLAMDATA)
+	ImageGrabber::ImageGrabber(ORB_SLAM2::System* pSLAM, SlamData* pSLAMDATA) : mpSLAMDATA(pSLAMDATA),mpSLAM(pSLAM){
+	    //mpSLAM = pSLAM;
+	   //mpSLAMDATA = pSLAMDATA;
+	#ifdef MAP_PUBLISH
+	    //mnMapRefreshCounter = 0;
+	#endif
+	}
+	
+	ImageGrabber::~ImageGrabber(){
+	  
+	  std::cout<<"Image Grabber destroyed"<<std::endl;
+	
+	}
+	
+	ImageGrabber::ImageGrabber(){
+	  
+	  std::cout<<"Image Grabber default constractor"<<std::endl;
+	
+	}
+	
+	void ImageGrabber::initialize(ORB_SLAM2::System* pSLAM, SlamData* pSLAMDATA)
 	{
 	    mpSLAM = pSLAM;
 	    mpSLAMDATA = pSLAMDATA;
 	#ifdef MAP_PUBLISH
 	    mnMapRefreshCounter = 0;
 	#endif
+	
+	
 	}
+
+
 
 	void ImageGrabber::GrabImu(const sensor_msgs::ImuConstPtr& msgImu)
 	{
+     std::cout<<"Inside GrabImu"<<std::endl;  
 	   sensor_msgs::Imu ImuMsg = *msgImu;    
 	   geometry_msgs::Quaternion imuQuat = ImuMsg.orientation;
-	   mpSLAMDATA->SetOrientationImu(imuQuat);
-
+	   std::cout<<"grabbed orientation"<<std::endl;
+	   std::cout<<"imuQuat"<<imuQuat<<std::endl;
+	   bool test = mpSLAMDATA->SetOrientationImu(imuQuat);
+	   std::cout<<"test: "<<test<<std::endl;
+	   std::cout<<"mpSLAMDATA->GetLastPose"<<std::endl;
+	   //std::cout<<mpSLAMDATA->LastPose<<std::endl;  
+     //mpSLAMDATA->ImuQuaternion = imuQuat;
 	}
 
 
 	void ImageGrabber::GrabAlt(const mavros_msgs::AltitudeConstPtr& msgAlt)
 	{
+	    std::cout<<"inside GrabAlt"<<std::endl;
+
 	    mavros_msgs::Altitude MavAlt = *msgAlt;
 	    float Alt = MavAlt.relative;
-	    mpSLAMDATA->SetAlt(Alt);
+	    std::cout<<"Relative Altitude "<<Alt<<std::endl;
+      try
+      {
+        mpSLAMDATA->SetAlt(Alt);
+      }
+      catch(runtime_error e) 
+      {
+        std::cout<< "Runtime error: " <<e.what()<<std::endl;
+      }
 	}
 
 
 	void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
 	{
-        std::cout<<"Grabbing images"<<std::endl;  
+      std::cout<<"Grabbing images"<<std::endl; 
+      std::cout<<mpSLAM->mSensor<<std::endl; 
 
 	    double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 	    ROS_INFO("ORB-SLAM Initial Latency: %.03f sec", ros::Time::now().toSec() - msgLeft->header.stamp.toSec());
@@ -62,14 +103,16 @@ namespace ORB_SLAM2{
 
 	    cv::Mat pose;
 	 
-		pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec());
-	    
+		  pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec());
+	    std::cout << "pose"<< std::endl;
+	    std::cout << pose<<std::endl;
 
 	    if (pose.empty())
 	    {
 		    mpSLAMDATA->SetResettingState(true);
 		    mpSLAMDATA->SetResumeFromPose(mpSLAMDATA->GetLastPose());
-		    mpSLAM->Reset();	
+		    mpSLAM->Reset();
+		    std::cout<<"empty pose"<<std::endl;	
 		    return;
 	    }
 	    

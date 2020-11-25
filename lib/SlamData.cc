@@ -7,9 +7,40 @@
 
 namespace ORB_SLAM2
 {
+SlamData::SlamData(){
+    std::cout<<"creating object with empty constructor"<<std::endl;
+
+}
+
+SlamData::~SlamData(){
+
+    std::cout<<"Slam Data distracted"<<std::endl;
+}
+
+
+SlamData::SlamData(const SlamData &SD2){
+
+    std::cout<<"creating object slamData copy constructor"<<std::endl;
+
+    mpSLAM = SD2.mpSLAM;
+    bEnablePublishROSTopic = true;
+    Initialized = SD2.Initialized;
+    ResettingState = SD2.ResettingState;
+    last_transform = SD2.last_transform;
+    pose_pub = SD2.pose_pub;
+    pose_pub_vision = SD2.pose_pub_vision;
+    pose_inc_pub = SD2.pose_inc_pub;
+    mTrans_cam2ground = SD2.mTrans_cam2ground;
+    current_frame_pub = SD2.current_frame_pub;
+    LastPose = cv::Mat::eye(4,4,CV_32F);
+    ResumeFromPose = cv::Mat::eye(4,4,CV_32F);
+    MavAlt = SD2.MavAlt;
+    
+}
 
 SlamData::SlamData(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool bPublishROSTopic)
 {
+    std::cout<<"creating object slamData"<<std::endl;
     mpSLAM = pSLAM;
     //mpFrameDrawer = mpSLAM->GetpFrameDrawer();
     bEnablePublishROSTopic = bPublishROSTopic;
@@ -37,9 +68,50 @@ SlamData::SlamData(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool 
     current_frame_pub = it_.advertise("/current_frame", 1);
     LastPose = cv::Mat::eye(4,4,CV_32F);
     ResumeFromPose = cv::Mat::eye(4,4,CV_32F);
+    
+    MavAlt = -1.0;
+    
 
     
 }
+
+void SlamData::initialize(ORB_SLAM2::System* pSLAM, ros::NodeHandle *nodeHandler, bool bPublishROSTopic)
+{
+    std::cout<<"Initialize slamdata"<<std::endl;
+    mpSLAM = pSLAM;
+    //mpFrameDrawer = mpSLAM->GetpFrameDrawer();
+    bEnablePublishROSTopic = bPublishROSTopic;
+    Initialized = false;
+    ResettingState = false;
+    // Perform tf transform and publish
+    last_transform.setOrigin(tf::Vector3(0,0,0));
+    tf::Quaternion q(0,0,0,1);
+    last_transform.setRotation(q);
+
+    pose_pub = (*nodeHandler).advertise<geometry_msgs::PoseStamped>("posestamped", 1000);
+    pose_pub_vision = (*nodeHandler).advertise<geometry_msgs::PoseStamped>("posestamped_vision", 1000);
+    pose_inc_pub = (*nodeHandler).advertise<geometry_msgs::PoseWithCovarianceStamped>("incremental_pose_cov", 1000);
+ 
+    all_point_cloud_pub = (*nodeHandler).advertise<sensor_msgs::PointCloud2>("point_cloud_all",1);
+    ref_point_cloud_pub = (*nodeHandler).advertise<sensor_msgs::PointCloud2>("point_cloud_ref",1);
+
+    mInitCam2Ground_R << 1,0,0,0,0,1,0,-1,0;  // camera coordinate represented in ground coordinate system
+    mInitCam2Ground_t.setZero();     
+    mTrans_cam2ground.setIdentity();   // Set to Identity to make bottom row of Matrix 0,0,0,1
+    mTrans_cam2ground.block<3,3>(0,0) = mInitCam2Ground_R;
+    mTrans_cam2ground.block<3,1>(0,3) = mInitCam2Ground_t;  //< block_rows, block_cols >(pos_row, pos_col)
+
+    image_transport::ImageTransport it_((*nodeHandler));
+    current_frame_pub = it_.advertise("/current_frame", 1);
+    LastPose = cv::Mat::eye(4,4,CV_32F);
+    ResumeFromPose = cv::Mat::eye(4,4,CV_32F);
+    
+    MavAlt = -1.0;
+    
+
+    
+}
+
 
 void SlamData::SaveTimePoint(TimePointIndex index)
 {
@@ -394,6 +466,7 @@ void SlamData::SetLastpose(cv::Mat lastpose){
 
 cv::Mat SlamData::GetLastPose(void){
 
+    std::cout<<"inside GetLastPose"<<std::endl;
     return LastPose;
 }
 
@@ -425,13 +498,25 @@ cv::Mat SlamData::ImuAltInt(float Alt, cv::Mat IMUR, cv::Mat CurrentPose){
 
 bool SlamData::SetOrientationImu(geometry_msgs::Quaternion MavImu)
 {
+  std::cout<<"SetOrientationImu 1"<<std::endl;
+  std::cout<<"ImuQuaternion"<<std::endl;
   ImuQuaternion = MavImu;
+  std::cout<<"ImuQuaternion set"<<std::endl;  
   return true;
 }
 
 bool SlamData::SetAlt(float Alt)
 {
-  MavAlt = Alt;
+  std::cout<<"slamdata::SetAlt with "<<Alt;
+  std::cout<<" instead of "<<MavAlt<<std::endl;
+  try{
+    MavAlt = Alt;
+  }
+  catch(...) 
+  {
+    std::cout<< "Caught Exception: " <<std::endl;
+  }
+  std::cout<<"SetAlt completed"<<std::endl; 
   return true;
 }
 

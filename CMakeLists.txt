@@ -397,7 +397,13 @@ ${catkin_LIBRARIES}
 ${PROJECT_NAME}
 )
 
+add_executable(testslamdata Examples/ROS/GF_ORB_SLAM2/src/test.cpp lib/SlamData.cc lib/ImageGrabber.cc)
 
+target_link_libraries(testslamdata
+${LIBS}
+${catkin_LIBRARIES}
+${PROJECT_NAME}
+)
 
 #add_library(stereo_nodelet Examples/ROS/GF_ORB_SLAM2/src/ros_stereo_nodelet.cc)
 #add_dependencies(stereo_nodelet ${PROJECT_NAME})
